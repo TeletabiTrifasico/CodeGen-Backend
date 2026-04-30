@@ -49,7 +49,7 @@ public class UserController {
 
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Approve a customer account and create their checking account")
+    @Operation(summary = "Approve a customer account and create their checking and saving accounts")
     public ResponseEntity<UserDTO> approveUser(@PathVariable Long id) {
         return ResponseEntity.ok(userService.approveUser(id));
     }
