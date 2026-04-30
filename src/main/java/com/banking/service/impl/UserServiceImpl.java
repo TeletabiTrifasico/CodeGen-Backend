@@ -68,7 +68,7 @@ public class UserServiceImpl implements UserService {
         user.setApproved(true);
         userRepository.save(user);
 
-        // Auto-create a CHECKING account for the newly approved customer
+        // create a CHECKING account for the newly approved customer
         Account checking = Account.builder()
             .iban(generateIban())
             .accountType(AccountType.CHECKING)
@@ -81,6 +81,18 @@ public class UserServiceImpl implements UserService {
             .build();
         accountRepository.save(checking);
 
+        // create a SAVINGS account for the newly approved customer
+        Account savings = Account.builder()
+            .iban(generateIban())
+            .accountType(AccountType.SAVINGS)
+            .balance(BigDecimal.ZERO)
+            .absoluteLimit(BigDecimal.ZERO)
+            .dayLimit(new BigDecimal("1000.00"))
+            .transactionLimit(new BigDecimal("500.00"))
+            .active(true)
+            .user(user)
+            .build();
+        accountRepository.save(savings);
         return UserDTO.from(user);
     }
 
