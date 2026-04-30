@@ -2,6 +2,7 @@ package com.banking.controller;
 
 import com.banking.dto.account.AccountDTO;
 import com.banking.dto.account.CreateAccountRequest;
+import com.banking.dto.account.UpdateAbsoluteLimitRequest;
 import com.banking.service.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -63,5 +64,13 @@ public class AccountController {
     @Operation(summary = "Close a customer account (employee only)")
     public ResponseEntity<AccountDTO> closeAccount(@PathVariable String iban) {
         return ResponseEntity.ok(accountService.closeAccount(iban));
+    }
+
+    @PutMapping("/{iban}/absolute-limit")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    @Operation(summary = "Update the absolute limit of an account (employee only)")
+    public ResponseEntity<AccountDTO> updateAbsoluteLimit(@PathVariable String iban,
+                                                          @Valid@RequestBody UpdateAbsoluteLimitRequest request){
+        return ResponseEntity.ok(accountService.updateAbsoluteLimit(iban, request));
     }
 }

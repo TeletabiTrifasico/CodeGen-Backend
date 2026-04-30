@@ -2,6 +2,7 @@ package com.banking.service.impl;
 
 import com.banking.dto.account.AccountDTO;
 import com.banking.dto.account.CreateAccountRequest;
+import com.banking.dto.account.UpdateAbsoluteLimitRequest;
 import com.banking.entity.Account;
 import com.banking.entity.User;
 import com.banking.enums.AccountType;
@@ -13,8 +14,6 @@ import com.banking.repository.AccountRepository;
 import com.banking.repository.UserRepository;
 import com.banking.service.AccountService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,36 +30,36 @@ public class AccountServiceImpl implements AccountService {
     @Override
     public List<AccountDTO> getAccountsForCurrentUser(String username) {
         return accountRepository.findByUserUsername(username).stream()
-            .map(AccountDTO::from)
-            .toList();
+                .map(AccountDTO::from)
+                .toList();
     }
 
     @Override
     public List<AccountDTO> getAccountsByUserId(Long userId) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
         return accountRepository.findByUser(user).stream()
-            .map(AccountDTO::from)
-            .toList();
+                .map(AccountDTO::from)
+                .toList();
     }
 
     @Override
     public AccountDTO getAccountByIban(String iban) {
         return accountRepository.findByIban(iban)
-            .map(AccountDTO::from)
-            .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + iban));
+                .map(AccountDTO::from)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + iban));
     }
 
     @Override
     @Transactional
     public AccountDTO createAccount(CreateAccountRequest request, String currentUsername) {
         User currentUser = userRepository.findByUsername(currentUsername)
-            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         User targetUser;
         if (currentUser.getRole() == UserRole.EMPLOYEE && request.getUserId() != null) {
             targetUser = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("Target user not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Target user not found"));
         } else {
             targetUser = currentUser;
         }
@@ -70,20 +69,20 @@ public class AccountServiceImpl implements AccountService {
         }
 
         BigDecimal dayLimit = request.getAccountType() == AccountType.SAVINGS
-            ? new BigDecimal("500.00") : new BigDecimal("1000.00");
+                ? new BigDecimal("500.00") : new BigDecimal("1000.00");
         BigDecimal txLimit = request.getAccountType() == AccountType.SAVINGS
-            ? new BigDecimal("250.00") : new BigDecimal("500.00");
+                ? new BigDecimal("250.00") : new BigDecimal("500.00");
 
         Account account = Account.builder()
-            .iban(generateIban())
-            .accountType(request.getAccountType())
-            .balance(BigDecimal.ZERO)
-            .absoluteLimit(BigDecimal.ZERO)
-            .dayLimit(dayLimit)
-            .transactionLimit(txLimit)
-            .active(true)
-            .user(targetUser)
-            .build();
+                .iban(generateIban())
+                .accountType(request.getAccountType())
+                .balance(BigDecimal.ZERO)
+                .absoluteLimit(BigDecimal.ZERO)
+                .dayLimit(dayLimit)
+                .transactionLimit(txLimit)
+                .active(true)
+                .user(targetUser)
+                .build();
 
         return AccountDTO.from(accountRepository.save(account));
     }
@@ -91,21 +90,34 @@ public class AccountServiceImpl implements AccountService {
     @Override
     public List<AccountDTO> getAllCustomerAccounts() {
         return accountRepository.findByUserRole(UserRole.CUSTOMER).stream()
-            .map(AccountDTO::from)
-            .toList();
+                .map(AccountDTO::from)
+                .toList();
     }
 
     @Override
     @Transactional
     public AccountDTO closeAccount(String iban) {
         Account account = accountRepository.findByIban(iban)
-            .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + iban));
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + iban));
         if (!account.isActive()) {
             throw new BadRequestException("Account is already closed");
         }
         account.setActive(false);
         return AccountDTO.from(accountRepository.save(account));
     }
+
+    @Override
+    @Transactional
+    public AccountDTO updateAbsoluteLimit(String iban, UpdateAbsoluteLimitRequest request) {
+        Account account = accountRepository.findByIban(iban)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + iban));
+        if (request.getAbsoluteLimit().compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("Absolute limit must be zero or positive");
+        }
+        account.setAbsoluteLimit(request.getAbsoluteLimit());
+        return AccountDTO.from(accountRepository.save(account));
+    }
+
 
     private String generateIban() {
         String iban;
