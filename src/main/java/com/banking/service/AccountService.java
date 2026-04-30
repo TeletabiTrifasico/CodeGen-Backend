@@ -3,6 +3,7 @@ package com.banking.service;
 import com.banking.dto.account.AccountDTO;
 import com.banking.dto.account.CreateAccountRequest;
 import com.banking.dto.account.UpdateAbsoluteLimitRequest;
+import com.banking.dto.account.UpdateDailyLimitRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -16,4 +17,5 @@ public interface AccountService {
     List<AccountDTO> getAllCustomerAccounts();
     AccountDTO closeAccount(String iban);
     AccountDTO updateAbsoluteLimit( String iban, UpdateAbsoluteLimitRequest request);
+    AccountDTO updateDailyLimit(String iban, UpdateDailyLimitRequest request);
 }

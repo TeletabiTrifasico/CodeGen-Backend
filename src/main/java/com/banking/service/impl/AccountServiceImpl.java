@@ -3,6 +3,7 @@ package com.banking.service.impl;
 import com.banking.dto.account.AccountDTO;
 import com.banking.dto.account.CreateAccountRequest;
 import com.banking.dto.account.UpdateAbsoluteLimitRequest;
+import com.banking.dto.account.UpdateDailyLimitRequest;
 import com.banking.entity.Account;
 import com.banking.entity.User;
 import com.banking.enums.AccountType;
@@ -115,6 +116,18 @@ public class AccountServiceImpl implements AccountService {
             throw new BadRequestException("Absolute limit must be zero or positive");
         }
         account.setAbsoluteLimit(request.getAbsoluteLimit());
+        return AccountDTO.from(accountRepository.save(account));
+    }
+
+    @Override
+    @Transactional
+    public AccountDTO updateDailyLimit(String iban, UpdateDailyLimitRequest request){
+        Account account = accountRepository.findByIban(iban)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + iban));
+        if (request.getDayLimit().compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("Daily limit must be zero or positive");
+        }
+        account.setDayLimit(request.getDayLimit());
         return AccountDTO.from(accountRepository.save(account));
     }
 

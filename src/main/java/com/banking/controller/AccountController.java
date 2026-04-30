@@ -3,6 +3,7 @@ package com.banking.controller;
 import com.banking.dto.account.AccountDTO;
 import com.banking.dto.account.CreateAccountRequest;
 import com.banking.dto.account.UpdateAbsoluteLimitRequest;
+import com.banking.dto.account.UpdateDailyLimitRequest;
 import com.banking.service.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,7 +29,7 @@ public class AccountController {
     @GetMapping("/all")
     @PreAuthorize("hasRole('EMPLOYEE')")
     @Operation(summary = "Get all customer accounts (employee only)")
-    public ResponseEntity<List<AccountDTO>>getAllCustomerAccounts() {
+    public ResponseEntity<List<AccountDTO>> getAllCustomerAccounts() {
         return ResponseEntity.ok(accountService.getAllCustomerAccounts());
     }
 
@@ -56,7 +57,7 @@ public class AccountController {
     public ResponseEntity<AccountDTO> createAccount(@Valid @RequestBody CreateAccountRequest request,
                                                     @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(accountService.createAccount(request, userDetails.getUsername()));
+                .body(accountService.createAccount(request, userDetails.getUsername()));
     }
 
     @PutMapping("/{iban}/close")
@@ -70,7 +71,17 @@ public class AccountController {
     @PreAuthorize("hasRole('EMPLOYEE')")
     @Operation(summary = "Update the absolute limit of an account (employee only)")
     public ResponseEntity<AccountDTO> updateAbsoluteLimit(@PathVariable String iban,
-                                                          @Valid@RequestBody UpdateAbsoluteLimitRequest request){
+                                                          @Valid @RequestBody UpdateAbsoluteLimitRequest request) {
         return ResponseEntity.ok(accountService.updateAbsoluteLimit(iban, request));
     }
+
+    @PutMapping("/{iban}/daily-limit")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    @Operation(summary = "Update the daily limit of an account (employee only)")
+    public ResponseEntity<AccountDTO> updateDailyLimit(@PathVariable String iban,
+                                                       @Valid @RequestBody UpdateDailyLimitRequest request) {
+        return ResponseEntity.ok(accountService.updateDailyLimit(iban, request));
+    }
+
+
 }
