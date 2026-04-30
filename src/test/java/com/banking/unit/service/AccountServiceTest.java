@@ -61,6 +61,41 @@ class AccountServiceTest {
     }
 
     @Test
+    void getAllCustomerAccounts_returnOnlyCustomerAccounts() {
+        Account a1 = Account.builder()
+                .id(1L).iban("NL02BANK1000000001")
+                .accountType(AccountType.CHECKING)
+                .balance(BigDecimal.TEN)
+                .absoluteLimit(BigDecimal.ZERO)
+                .dayLimit(new BigDecimal("1000"))
+                .transactionLimit(new BigDecimal("500"))
+                .user(approvedCustomer)
+                .build();
+
+        Account a2 = Account.builder()
+                .id(2L).iban("NL02BANK1000000002")
+                .accountType(AccountType.SAVINGS)
+                .balance(BigDecimal.valueOf(500))
+                .absoluteLimit(BigDecimal.ZERO)
+                .dayLimit(new BigDecimal("2000"))
+                .transactionLimit(new BigDecimal("1000"))
+                .user(pendingCustomer)
+                .build();
+
+        when(accountRepository.findByUserRole(UserRole.CUSTOMER)).thenReturn(List.of(a1, a2));
+
+        List<AccountDTO> accountDTOs = accountService.getAllCustomerAccounts();
+
+        assertThat(accountDTOs).hasSize(2);
+        verify(accountRepository, times(1)).findByUserRole(UserRole.CUSTOMER);
+
+
+
+
+
+    }
+
+    @Test
     void getAccountsForCurrentUser_returnsAccounts() {
         Account a1 = Account.builder()
             .id(1L).iban("NL02BANK1000000001")
