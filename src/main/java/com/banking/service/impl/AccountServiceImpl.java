@@ -13,6 +13,8 @@ import com.banking.repository.AccountRepository;
 import com.banking.repository.UserRepository;
 import com.banking.service.AccountService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -84,6 +86,13 @@ public class AccountServiceImpl implements AccountService {
             .build();
 
         return AccountDTO.from(accountRepository.save(account));
+    }
+
+    @Override
+    public List<AccountDTO> getAllCustomerAccounts() {
+        return accountRepository.findByUserRole(UserRole.CUSTOMER).stream()
+            .map(AccountDTO::from)
+            .toList();
     }
 
     private String generateIban() {
