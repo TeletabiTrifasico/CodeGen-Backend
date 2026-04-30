@@ -57,4 +57,11 @@ public class AccountController {
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(accountService.createAccount(request, userDetails.getUsername()));
     }
+
+    @PutMapping("/{iban}/close")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    @Operation(summary = "Close a customer account (employee only)")
+    public ResponseEntity<AccountDTO> closeAccount(@PathVariable String iban) {
+        return ResponseEntity.ok(accountService.closeAccount(iban));
+    }
 }

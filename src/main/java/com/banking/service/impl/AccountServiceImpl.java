@@ -95,6 +95,18 @@ public class AccountServiceImpl implements AccountService {
             .toList();
     }
 
+    @Override
+    @Transactional
+    public AccountDTO closeAccount(String iban) {
+        Account account = accountRepository.findByIban(iban)
+            .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + iban));
+        if (!account.isActive()) {
+            throw new BadRequestException("Account is already closed");
+        }
+        account.setActive(false);
+        return AccountDTO.from(accountRepository.save(account));
+    }
+
     private String generateIban() {
         String iban;
         do {

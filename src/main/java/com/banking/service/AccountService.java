@@ -13,4 +13,5 @@ public interface AccountService {
     AccountDTO getAccountByIban(String iban);
     AccountDTO createAccount(CreateAccountRequest request, String currentUsername);
     List<AccountDTO> getAllCustomerAccounts();
+    AccountDTO closeAccount(String iban);
 }
