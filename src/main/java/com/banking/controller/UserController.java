@@ -26,6 +26,13 @@ public class UserController {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
+    @GetMapping("without-accounts")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    @Operation(summary = "Get customers who do not have accounts yet")
+    public ResponseEntity<List<UserDTO>> getCustomersWithoutAccounts() {
+        return ResponseEntity.ok(userService.getCustomersWithoutAccounts());
+    }
+
     @GetMapping("/pending")
     @PreAuthorize("hasRole('EMPLOYEE')")
     @Operation(summary = "Get customers awaiting approval")

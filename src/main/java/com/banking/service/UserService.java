@@ -9,4 +9,5 @@ public interface UserService {
     List<UserDTO> getPendingCustomers();
     UserDTO getUserById(Long id);
     UserDTO approveUser(Long id);
+    List<UserDTO> getCustomersWithoutAccounts();
 }

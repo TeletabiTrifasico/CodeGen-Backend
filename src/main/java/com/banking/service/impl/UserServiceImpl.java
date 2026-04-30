@@ -1,6 +1,5 @@
 package com.banking.service.impl;
 
-import com.banking.dto.account.AccountDTO;
 import com.banking.dto.user.UserDTO;
 import com.banking.entity.Account;
 import com.banking.entity.User;
@@ -14,10 +13,9 @@ import com.banking.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
+
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +43,13 @@ public class UserServiceImpl implements UserService {
         return userRepository.findById(id)
             .map(UserDTO::from)
             .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+    }
+
+    @Override
+    public List<UserDTO> getCustomersWithoutAccounts() {
+        return userRepository.findByRoleAndAccountsIsEmpty(UserRole.CUSTOMER).stream()
+            .map(UserDTO::from)
+            .toList();
     }
 
     @Override
