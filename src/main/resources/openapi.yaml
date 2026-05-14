@@ -1,709 +1,597 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Banking API
-  description: |
-    REST API for the Banking System.
-
-    ## Authentication
-    Most endpoints require a JWT Bearer token obtained from `POST /api/auth/login`.
-    Include it as: `Authorization: Bearer <token>`
-
-    ## Roles
-    - **CUSTOMER** – registered bank customer (must be approved to perform banking operations)
-    - **EMPLOYEE** – bank employee who can approve customers and view all data
-
-    ## Banking Flow
-    1. Customer registers via `POST /api/auth/register` → account is **pending** approval
-    2. Employee approves via `PUT /api/users/{id}/approve` → CHECKING account is auto-created
-    3. Customer can now transfer money, use ATM, view transactions
-  version: 1.0.0
-  contact:
-    name: Banking API Support
-
+  description: Banking System REST API
+  version: v1
 servers:
   - url: http://localhost:8080
-    description: Local development server
-  - url: https://banking-api.onrender.com
-    description: Production server (Render.com)
-
+    description: Generated server url
+security:
+  - bearerAuth: []
 tags:
+  - name: ATM
+    description: ATM deposit and withdrawal operations
+  - name: Accounts
+    description: Bank account operations
   - name: Authentication
     description: Register, login, and logout
   - name: Users
     description: User management (employee only)
-  - name: Accounts
-    description: Bank account operations
   - name: Transactions
     description: Transaction operations
-  - name: ATM
-    description: ATM cash deposit and withdrawal
-
 paths:
-  # ─── AUTH ────────────────────────────────────────────────────────────────────
-  /api/auth/register:
-    post:
-      tags: [Authentication]
-      summary: Register a new customer account
-      description: Creates a new CUSTOMER user in pending state. No banking access until approved by an employee.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RegisterRequest'
-      responses:
-        '201':
-          description: User registered successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserDTO'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '409':
-          $ref: '#/components/responses/Conflict'
-
-  /api/auth/login:
-    post:
-      tags: [Authentication]
-      summary: Login and receive a JWT token
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoginRequest'
-      responses:
-        '200':
-          description: Login successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LoginResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /api/auth/logout:
-    post:
-      tags: [Authentication]
-      summary: Logout and invalidate the JWT token
-      security:
-        - bearerAuth: []
-      responses:
-        '204':
-          description: Logged out successfully
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  # ─── USERS ───────────────────────────────────────────────────────────────────
-  /api/users:
-    get:
-      tags: [Users]
-      summary: Get all users (employee only)
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: List of all users
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/UserDTO'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /api/users/pending:
-    get:
-      tags: [Users]
-      summary: Get customers awaiting approval (employee only)
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: List of pending customers
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/UserDTO'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /api/users/{id}:
-    get:
-      tags: [Users]
-      summary: Get user by ID (employee only)
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/IdParam'
-      responses:
-        '200':
-          description: User details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserDTO'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
   /api/users/{id}/approve:
     put:
-      tags: [Users]
-      summary: Approve a customer account (employee only)
-      description: Sets the customer as approved and automatically creates a CHECKING account for them.
-      security:
-        - bearerAuth: []
+      tags:
+        - Users
+      summary: Approve a customer account and create their checking and saving accounts
+      operationId: approveUser
       parameters:
-        - $ref: '#/components/parameters/IdParam'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
       responses:
         '200':
-          description: User approved
+          description: OK
           content:
-            application/json:
+            '*/*':
               schema:
                 $ref: '#/components/schemas/UserDTO'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  # ─── ACCOUNTS ────────────────────────────────────────────────────────────────
-  /api/accounts:
-    get:
-      tags: [Accounts]
-      summary: Get all accounts for the authenticated user
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: List of accounts
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AccountDTO'
-    post:
-      tags: [Accounts]
-      summary: Create a new account
-      description: |
-        Customers can create a SAVINGS account for themselves.
-        Employees can create any account type for any user by providing `userId`.
-      security:
-        - bearerAuth: []
+  /api/accounts/{iban}/daily-limit:
+    put:
+      tags:
+        - Accounts
+      summary: Update the daily limit of an account (employee only)
+      operationId: updateDailyLimit
+      parameters:
+        - name: iban
+          in: path
+          required: true
+          schema:
+            type: string
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateAccountRequest'
+              $ref: '#/components/schemas/UpdateDailyLimitRequest'
+        required: true
       responses:
-        '201':
-          description: Account created
+        '200':
+          description: OK
           content:
-            application/json:
+            '*/*':
               schema:
                 $ref: '#/components/schemas/AccountDTO'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-
-  /api/accounts/{iban}:
-    get:
-      tags: [Accounts]
-      summary: Get account details by IBAN
-      security:
-        - bearerAuth: []
+  /api/accounts/{iban}/close:
+    put:
+      tags:
+        - Accounts
+      summary: Close a customer account (employee only)
+      operationId: closeAccount
       parameters:
         - name: iban
           in: path
           required: true
           schema:
             type: string
-            example: NL02BANK1000000001
       responses:
         '200':
-          description: Account details
+          description: OK
           content:
-            application/json:
+            '*/*':
               schema:
                 $ref: '#/components/schemas/AccountDTO'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/accounts/user/{userId}:
-    get:
-      tags: [Accounts]
-      summary: Get accounts for a specific user (employee only)
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/IdParam'
-      responses:
-        '200':
-          description: List of accounts
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AccountDTO'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  # ─── TRANSACTIONS ─────────────────────────────────────────────────────────────
-  /api/transactions:
-    get:
-      tags: [Transactions]
-      summary: Get all transactions involving the authenticated user's accounts
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: List of transactions
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/TransactionDTO'
-
-  /api/transactions/all:
-    get:
-      tags: [Transactions]
-      summary: Get all transactions in the system (employee only)
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: All transactions
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/TransactionDTO'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /api/transactions/account/{iban}:
-    get:
-      tags: [Transactions]
-      summary: Get transactions for a specific account
-      security:
-        - bearerAuth: []
+  /api/accounts/{iban}/absolute-limit:
+    put:
+      tags:
+        - Accounts
+      summary: Update the absolute limit of an account (employee only)
+      operationId: updateAbsoluteLimit
       parameters:
         - name: iban
           in: path
           required: true
           schema:
             type: string
-            example: NL02BANK1000000001
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAbsoluteLimitRequest'
+        required: true
       responses:
         '200':
-          description: Transactions for the account
+          description: OK
           content:
-            application/json:
+            '*/*':
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/TransactionDTO'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
+                $ref: '#/components/schemas/AccountDTO'
   /api/transactions/transfer:
     post:
-      tags: [Transactions]
+      tags:
+        - Transactions
       summary: Transfer money between two accounts
-      description: |
-        Moves money from `fromIban` to `toIban`.
-        - The authenticated user must own `fromIban` (unless they are an employee).
-        - Both accounts must be active.
-        - The amount must not exceed the per-transaction limit or push the balance below the absolute limit.
-      security:
-        - bearerAuth: []
+      operationId: transfer
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/TransferRequest'
+        required: true
       responses:
-        '201':
-          description: Transfer completed
+        '200':
+          description: OK
           content:
-            application/json:
+            '*/*':
               schema:
                 $ref: '#/components/schemas/TransactionDTO'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '422':
-          $ref: '#/components/responses/InsufficientFunds'
-
-  # ─── ATM ─────────────────────────────────────────────────────────────────────
-  /api/atm/deposit:
+  /api/auth/register:
     post:
-      tags: [ATM]
-      summary: Deposit cash into an account via ATM
-      security:
-        - bearerAuth: []
+      tags:
+        - Authentication
+      summary: Register a new customer account
+      operationId: register
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AtmRequest'
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
       responses:
-        '201':
-          description: Deposit successful
+        '200':
+          description: OK
           content:
-            application/json:
+            '*/*':
               schema:
-                $ref: '#/components/schemas/AtmResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-
+                $ref: '#/components/schemas/UserDTO'
+  /api/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout and invalidate the JWT token
+      operationId: logout
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login and receive a JWT token
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
   /api/atm/withdraw:
     post:
-      tags: [ATM]
+      tags:
+        - ATM
       summary: Withdraw cash from an account via ATM
-      security:
-        - bearerAuth: []
+      operationId: withdraw
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/AtmRequest'
+        required: true
       responses:
-        '201':
-          description: Withdrawal successful
+        '200':
+          description: OK
           content:
-            application/json:
+            '*/*':
               schema:
                 $ref: '#/components/schemas/AtmResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '422':
-          $ref: '#/components/responses/InsufficientFunds'
-
-# ─── COMPONENTS ────────────────────────────────────────────────────────────────
+  /api/atm/deposit:
+    post:
+      tags:
+        - ATM
+      summary: Deposit cash into an account via ATM
+      operationId: deposit
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AtmRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/AtmResponse'
+  /api/accounts:
+    get:
+      tags:
+        - Accounts
+      summary: Get all customer accounts or accounts for a specific user (employee only)
+      operationId: getAccounts
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountDTO'
+    post:
+      tags:
+        - Accounts
+      summary: Create a new account
+      operationId: createAccount
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/AccountDTO'
+  /api/users:
+    get:
+      tags:
+        - Users
+      summary: Get users with optional status filter
+      operationId: getUsers
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending
+              - without_accounts
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserDTO'
+  /api/users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      operationId: getUserById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+  /api/transactions:
+    get:
+      tags:
+        - Transactions
+      summary: Get all transactions involving the authenticated user's accounts
+      operationId: getMyTransactions
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransactionDTO'
+  /api/transactions/all:
+    get:
+      tags:
+        - Transactions
+      summary: Get all transactions in the system (employee only)
+      operationId: getAllTransactions
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransactionDTO'
+  /api/transactions/account/{iban}:
+    get:
+      tags:
+        - Transactions
+      summary: Get transactions for a specific account
+      operationId: getByAccount
+      parameters:
+        - name: iban
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransactionDTO'
+  /api/accounts/{iban}:
+    get:
+      tags:
+        - Accounts
+      summary: Get account details by IBAN
+      operationId: getByIban
+      parameters:
+        - name: iban
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/AccountDTO'
+  /api/accounts/myAccounts:
+    get:
+      tags:
+        - Accounts
+      summary: Get all accounts for the authenticated user
+      operationId: getMyAccounts
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountDTO'
 components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
-  parameters:
-    IdParam:
-      name: id
-      in: path
-      required: true
-      schema:
-        type: integer
-        format: int64
-        example: 1
-
-  responses:
-    BadRequest:
-      description: Bad request – invalid input
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-    Unauthorized:
-      description: Unauthorized – missing or invalid token
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-    Forbidden:
-      description: Forbidden – insufficient permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-    Conflict:
-      description: Conflict – resource already exists
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-    InsufficientFunds:
-      description: Unprocessable – insufficient funds
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-
   schemas:
-    # Auth
-    RegisterRequest:
-      type: object
-      required: [username, password, firstName, lastName, email, phoneNumber, bsn, dateOfBirth]
-      properties:
-        username:
-          type: string
-          minLength: 3
-          maxLength: 50
-          example: johndoe
-        password:
-          type: string
-          minLength: 8
-          example: Password1!
-        firstName:
-          type: string
-          example: John
-        lastName:
-          type: string
-          example: Doe
-        email:
-          type: string
-          format: email
-          example: john@example.nl
-        phoneNumber:
-          type: string
-          example: "+31612345678"
-        bsn:
-          type: string
-          pattern: '^\d{9}$'
-          example: "987654321"
-        dateOfBirth:
-          type: string
-          format: date
-          example: "1990-06-20"
-
-    LoginRequest:
-      type: object
-      required: [username, password]
-      properties:
-        username:
-          type: string
-          example: johndoe
-        password:
-          type: string
-          example: Password1!
-
-    LoginResponse:
-      type: object
-      properties:
-        token:
-          type: string
-          example: eyJhbGciOiJIUzI1NiJ9...
-        user:
-          $ref: '#/components/schemas/UserDTO'
-
-    # User
     UserDTO:
       type: object
       properties:
         id:
           type: integer
           format: int64
-          example: 1
         username:
           type: string
-          example: johndoe
         firstName:
           type: string
-          example: John
         lastName:
           type: string
-          example: Doe
         email:
           type: string
-          example: john@example.nl
         phoneNumber:
           type: string
-          example: "+31612345678"
         bsn:
           type: string
-          example: "987654321"
         dateOfBirth:
           type: string
           format: date
-          example: "1990-06-20"
         role:
           type: string
-          enum: [CUSTOMER, EMPLOYEE]
-          example: CUSTOMER
+          enum:
+            - CUSTOMER
+            - EMPLOYEE
         approved:
           type: boolean
-          example: true
-
-    # Account
+    UpdateDailyLimitRequest:
+      type: object
+      properties:
+        dayLimit:
+          type: number
+      required:
+        - dayLimit
     AccountDTO:
       type: object
       properties:
         id:
           type: integer
           format: int64
-          example: 1
         iban:
           type: string
-          example: NL02BANK1000000001
         accountType:
           type: string
-          enum: [CHECKING, SAVINGS]
-          example: CHECKING
+          enum:
+            - CHECKING
+            - SAVINGS
         balance:
           type: number
-          format: decimal
-          example: 2500.00
         absoluteLimit:
           type: number
-          format: decimal
-          example: 0.00
         dayLimit:
           type: number
-          format: decimal
-          example: 1000.00
         transactionLimit:
           type: number
-          format: decimal
-          example: 500.00
         active:
           type: boolean
-          example: true
         createdAt:
           type: string
           format: date-time
         ownerUsername:
           type: string
-          example: johndoe
         ownerFullName:
           type: string
-          example: John Doe
-
-    CreateAccountRequest:
+    UpdateAbsoluteLimitRequest:
       type: object
-      required: [accountType]
       properties:
-        accountType:
+        absoluteLimit:
+          type: number
+      required:
+        - absoluteLimit
+    TransferRequest:
+      type: object
+      properties:
+        fromIban:
           type: string
-          enum: [CHECKING, SAVINGS]
-          example: SAVINGS
-        userId:
-          type: integer
-          format: int64
-          description: Employee-only – create account for this user
-          example: 2
-
-    # Transaction
+          minLength: 1
+        toIban:
+          type: string
+          minLength: 1
+        amount:
+          type: number
+          minimum: 0.01
+        description:
+          type: string
+      required:
+        - amount
     TransactionDTO:
       type: object
       properties:
         id:
           type: integer
           format: int64
-          example: 1
         reference:
           type: string
-          example: TRX-A1B2C3D4
         sourceIban:
           type: string
-          nullable: true
-          example: NL02BANK1000000001
         destinationIban:
           type: string
-          nullable: true
-          example: NL02BANK2000000001
         amount:
           type: number
-          format: decimal
-          example: 200.00
         description:
           type: string
-          example: Rent payment
         type:
           type: string
-          enum: [TRANSFER, ATM_DEPOSIT, ATM_WITHDRAWAL]
-          example: TRANSFER
+          enum:
+            - TRANSFER
+            - ATM_DEPOSIT
+            - ATM_WITHDRAWAL
         timestamp:
           type: string
           format: date-time
         initiatedByUsername:
           type: string
-          example: johndoe
-
-    TransferRequest:
+    RegisterRequest:
       type: object
-      required: [fromIban, toIban, amount]
       properties:
-        fromIban:
+        username:
           type: string
-          example: NL02BANK1000000001
-        toIban:
+          maxLength: 50
+          minLength: 3
+        password:
           type: string
-          example: NL02BANK2000000001
-        amount:
-          type: number
-          format: decimal
-          minimum: 0.01
-          example: 100.00
-        description:
+          maxLength: 2147483647
+          minLength: 8
+        firstName:
           type: string
-          example: Dinner split
-
-    # ATM
+          minLength: 1
+        lastName:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          minLength: 1
+        phoneNumber:
+          type: string
+          minLength: 1
+          pattern: ^\+?[0-9]{7,15}$
+        bsn:
+          type: string
+          minLength: 1
+          pattern: ^\d{9}$
+        dateOfBirth:
+          type: string
+          format: date
+      required:
+        - dateOfBirth
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserDTO'
     AtmRequest:
       type: object
-      required: [iban, amount]
       properties:
         iban:
           type: string
-          example: NL02BANK1000000001
+          minLength: 1
         amount:
           type: number
-          format: decimal
           minimum: 0.01
-          example: 200.00
         description:
           type: string
-          example: Weekly cash
-
+      required:
+        - amount
     AtmResponse:
       type: object
       properties:
         reference:
           type: string
-          example: ATM-F1E2D3C4
         newBalance:
           type: number
-          format: decimal
-          example: 2700.00
         message:
           type: string
-          example: Deposit successful
-
-    # Error
-    ErrorResponse:
+    CreateAccountRequest:
       type: object
       properties:
-        timestamp:
+        accountType:
           type: string
-          format: date-time
-        status:
+          enum:
+            - CHECKING
+            - SAVINGS
+        userId:
           type: integer
-          example: 400
-        error:
-          type: string
-          example: Bad request
+          format: int64
+      required:
+        - accountType
+  securitySchemes:
+    bearerAuth:
+      type: http
+      in: header
+      scheme: bearer
+      bearerFormat: JWT
