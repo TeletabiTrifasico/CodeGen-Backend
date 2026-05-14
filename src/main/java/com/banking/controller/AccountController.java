@@ -26,21 +26,19 @@ public class AccountController {
 
     private final AccountService accountService;
 
-    @GetMapping("/all")
+    @GetMapping
     @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Get all customer accounts (employee only)")
-    public ResponseEntity<List<AccountDTO>> getAllCustomerAccounts() {
+    @Operation(summary = "Get all customer accounts or accounts for a specific user (employee only)")
+    public ResponseEntity<List<AccountDTO>> getAccounts(
+            @RequestParam(required = false) Long userId) {
+
+        if (userId != null) {
+            return ResponseEntity.ok(accountService.getAccountsByUserId(userId));
+        }
         return ResponseEntity.ok(accountService.getAllCustomerAccounts());
     }
 
-    @GetMapping("/user/{userId}")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Get accounts belonging to a specific user (employee only)")
-    public ResponseEntity<List<AccountDTO>> getByUserId(@PathVariable Long userId) {
-        return ResponseEntity.ok(accountService.getAccountsByUserId(userId));
-    }
-
-    @GetMapping
+    @GetMapping("/myAccounts")
     @Operation(summary = "Get all accounts for the authenticated user")
     public ResponseEntity<List<AccountDTO>> getMyAccounts(@AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(accountService.getAccountsForCurrentUser(userDetails.getUsername()));

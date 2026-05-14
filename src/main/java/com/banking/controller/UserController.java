@@ -1,6 +1,7 @@
 package com.banking.controller;
 
 import com.banking.dto.user.UserDTO;
+import com.banking.enums.UserStatusFilter;
 import com.banking.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,23 +22,15 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Get all users")
-    public ResponseEntity<List<UserDTO>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
-    }
-
-    @GetMapping("without-accounts")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Get customers who do not have accounts yet")
-    public ResponseEntity<List<UserDTO>> getCustomersWithoutAccounts() {
-        return ResponseEntity.ok(userService.getCustomersWithoutAccounts());
-    }
-
-    @GetMapping("/pending")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Get customers awaiting approval")
-    public ResponseEntity<List<UserDTO>> getPendingCustomers() {
-        return ResponseEntity.ok(userService.getPendingCustomers());
+    @Operation(summary = "Get users with optional status filter")
+    public ResponseEntity<List<UserDTO>> getUsers(@RequestParam(required = false) UserStatusFilter status) {
+        if (status == null) {
+            return ResponseEntity.ok(userService.getAllUsers());
+        }
+        return switch (status) {
+            case pending -> ResponseEntity.ok(userService.getPendingCustomers());
+            case without_accounts -> ResponseEntity.ok(userService.getCustomersWithoutAccounts());
+        };
     }
 
     @GetMapping("/{id}")
