@@ -6,9 +6,3 @@ services:
       - "8080:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=dev
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost/ && curl -f http://localhost:8080/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 90s
