@@ -22,7 +22,7 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Get users with optional status filter")
+    @Operation(summary = "Get users by status (All, Pending, Without Accounts) - Employee Only")
     public ResponseEntity<List<UserDTO>> getUsers(@RequestParam(required = false) UserStatusFilter status) {
         if (status == null) {
             return ResponseEntity.ok(userService.getAllUsers());
@@ -40,9 +40,9 @@ public class UserController {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
-    @PutMapping("/{id}/approve")
+    @PutMapping("/{id}")
     @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Approve a customer account and create their checking and saving accounts")
+    @Operation(summary = "Approve a customer and create their checking and saving accounts")
     public ResponseEntity<UserDTO> approveUser(@PathVariable Long id) {
         return ResponseEntity.ok(userService.approveUser(id));
     }

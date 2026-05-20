@@ -109,7 +109,7 @@ class AccountServiceTest {
 
         when(accountRepository.findByUserUsername("johndoe")).thenReturn(List.of(a1));
 
-        List<AccountDTO> result = accountService.getAccountsForCurrentUser("johndoe");
+        List<AccountDTO> result = accountService.getAccountsOfCurrentUser("johndoe");
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getIban()).isEqualTo("NL02BANK1000000001");

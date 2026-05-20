@@ -1,9 +1,7 @@
 package com.banking.controller;
-
 import com.banking.dto.account.AccountDTO;
 import com.banking.dto.account.CreateAccountRequest;
-import com.banking.dto.account.UpdateAbsoluteLimitRequest;
-import com.banking.dto.account.UpdateDailyLimitRequest;
+import com.banking.dto.account.UpdateAccountRequest;
 import com.banking.service.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,7 +15,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
 @RestController
 @RequestMapping("/api/accounts")
 @Tag(name = "Accounts", description = "Bank account operations")
@@ -28,20 +25,19 @@ public class AccountController {
 
     @GetMapping
     @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Get all customer accounts or accounts for a specific user (employee only)")
+    @Operation(summary = "Get all customer accounts or accounts of specific user by User ID - Employee only")
     public ResponseEntity<List<AccountDTO>> getAccounts(
             @RequestParam(required = false) Long userId) {
-
         if (userId != null) {
             return ResponseEntity.ok(accountService.getAccountsByUserId(userId));
         }
         return ResponseEntity.ok(accountService.getAllCustomerAccounts());
     }
 
-    @GetMapping("/myAccounts")
-    @Operation(summary = "Get all accounts for the authenticated user")
+    @GetMapping("/accounts")
+    @Operation(summary = "Get all accounts of an authenticated user")
     public ResponseEntity<List<AccountDTO>> getMyAccounts(@AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(accountService.getAccountsForCurrentUser(userDetails.getUsername()));
+        return ResponseEntity.ok(accountService.getAccountsOfCurrentUser(userDetails.getUsername()));
     }
 
     @GetMapping("/{iban}")
@@ -58,27 +54,12 @@ public class AccountController {
                 .body(accountService.createAccount(request, userDetails.getUsername()));
     }
 
-    @PutMapping("/{iban}/close")
+    @PatchMapping("/{iban}")
     @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Close a customer account (employee only)")
-    public ResponseEntity<AccountDTO> closeAccount(@PathVariable String iban) {
-        return ResponseEntity.ok(accountService.closeAccount(iban));
-    }
-
-    @PutMapping("/{iban}/absolute-limit")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Update the absolute limit of an account (employee only)")
-    public ResponseEntity<AccountDTO> updateAbsoluteLimit(@PathVariable String iban,
-                                                          @Valid @RequestBody UpdateAbsoluteLimitRequest request) {
-        return ResponseEntity.ok(accountService.updateAbsoluteLimit(iban, request));
-    }
-
-    @PutMapping("/{iban}/daily-limit")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Update the daily limit of an account (employee only)")
-    public ResponseEntity<AccountDTO> updateDailyLimit(@PathVariable String iban,
-                                                       @Valid @RequestBody UpdateDailyLimitRequest request) {
-        return ResponseEntity.ok(accountService.updateDailyLimit(iban, request));
+    @Operation(summary ="Update an account - close,daily limit, transaction limit, - Employee only")
+    public ResponseEntity<AccountDTO> updateAccount(@PathVariable String iban,
+                                                    @RequestBody UpdateAccountRequest request) {
+        return ResponseEntity.ok(accountService.updateAccount(iban, request));
     }
 
 

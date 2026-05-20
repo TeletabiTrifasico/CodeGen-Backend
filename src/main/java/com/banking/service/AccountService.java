@@ -1,21 +1,14 @@
 package com.banking.service;
 
-import com.banking.dto.account.AccountDTO;
-import com.banking.dto.account.CreateAccountRequest;
-import com.banking.dto.account.UpdateAbsoluteLimitRequest;
-import com.banking.dto.account.UpdateDailyLimitRequest;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.banking.dto.account.*;
 
 import java.util.List;
 
 public interface AccountService {
-    List<AccountDTO> getAccountsForCurrentUser(String username);
+    List<AccountDTO> getAccountsOfCurrentUser(String username);
     List<AccountDTO> getAccountsByUserId(Long userId);
     AccountDTO getAccountByIban(String iban);
     AccountDTO createAccount(CreateAccountRequest request, String currentUsername);
     List<AccountDTO> getAllCustomerAccounts();
-    AccountDTO closeAccount(String iban);
-    AccountDTO updateAbsoluteLimit( String iban, UpdateAbsoluteLimitRequest request);
-    AccountDTO updateDailyLimit(String iban, UpdateDailyLimitRequest request);
+    AccountDTO updateAccount(String iban, UpdateAccountRequest request);
 }

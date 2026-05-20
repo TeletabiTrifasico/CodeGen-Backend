@@ -1,9 +1,6 @@
 package com.banking.service.impl;
 
-import com.banking.dto.account.AccountDTO;
-import com.banking.dto.account.CreateAccountRequest;
-import com.banking.dto.account.UpdateAbsoluteLimitRequest;
-import com.banking.dto.account.UpdateDailyLimitRequest;
+import com.banking.dto.account.*;
 import com.banking.entity.Account;
 import com.banking.entity.User;
 import com.banking.enums.AccountType;
@@ -29,7 +26,7 @@ public class AccountServiceImpl implements AccountService {
     private final UserRepository userRepository;
 
     @Override
-    public List<AccountDTO> getAccountsForCurrentUser(String username) {
+    public List<AccountDTO> getAccountsOfCurrentUser(String username) {
         return accountRepository.findByUserUsername(username).stream()
                 .map(AccountDTO::from)
                 .toList();
@@ -97,40 +94,30 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     @Transactional
-    public AccountDTO closeAccount(String iban) {
+    public AccountDTO updateAccount(String iban, UpdateAccountRequest request) {
         Account account = accountRepository.findByIban(iban)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + iban));
-        if (!account.isActive()) {
-            throw new BadRequestException("Account is already closed");
+        if (request.getAbsoluteLimit() != null) {
+            if (request.getAbsoluteLimit().compareTo(BigDecimal.ZERO) < 0) {
+                throw new BadRequestException("Absolute limit must be zero or positive");
+            }
+            account.setAbsoluteLimit(request.getAbsoluteLimit());
         }
-        account.setActive(false);
+        if (request.getDayLimit() != null) {
+            if (request.getDayLimit().compareTo(BigDecimal.ZERO) < 0) {
+                throw new BadRequestException("Daily limit must be zero or positive");
+            }
+            account.setDayLimit(request.getDayLimit());
+        }
+        if (request.getTransactionLimit() != null) {
+            if (request.getTransactionLimit().compareTo(BigDecimal.ZERO) < 0) {
+                throw new BadRequestException("Transaction limit must be zero or positive");
+            }
+            account.setTransactionLimit(request.getTransactionLimit());
+        }
+        account.setActive(request.isActive());
         return AccountDTO.from(accountRepository.save(account));
     }
-
-    @Override
-    @Transactional
-    public AccountDTO updateAbsoluteLimit(String iban, UpdateAbsoluteLimitRequest request) {
-        Account account = accountRepository.findByIban(iban)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + iban));
-        if (request.getAbsoluteLimit().compareTo(BigDecimal.ZERO) < 0) {
-            throw new BadRequestException("Absolute limit must be zero or positive");
-        }
-        account.setAbsoluteLimit(request.getAbsoluteLimit());
-        return AccountDTO.from(accountRepository.save(account));
-    }
-
-    @Override
-    @Transactional
-    public AccountDTO updateDailyLimit(String iban, UpdateDailyLimitRequest request){
-        Account account = accountRepository.findByIban(iban)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + iban));
-        if (request.getDayLimit().compareTo(BigDecimal.ZERO) < 0) {
-            throw new BadRequestException("Daily limit must be zero or positive");
-        }
-        account.setDayLimit(request.getDayLimit());
-        return AccountDTO.from(accountRepository.save(account));
-    }
-
 
     private String generateIban() {
         String iban;
