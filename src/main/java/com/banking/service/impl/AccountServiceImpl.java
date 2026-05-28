@@ -115,7 +115,9 @@ public class AccountServiceImpl implements AccountService {
             }
             account.setTransactionLimit(request.getTransactionLimit());
         }
-        account.setActive(request.isActive());
+        if (request.getActive() != null) {
+            account.setActive(request.getActive());
+        }
         return AccountDTO.from(accountRepository.save(account));
     }
 

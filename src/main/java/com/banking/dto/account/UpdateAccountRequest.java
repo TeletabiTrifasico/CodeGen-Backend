@@ -16,7 +16,7 @@ public class UpdateAccountRequest
     private BigDecimal absoluteLimit;
     private BigDecimal dayLimit;
     private BigDecimal transactionLimit;
-    private boolean active;
+    private Boolean active;
 
 }
 
