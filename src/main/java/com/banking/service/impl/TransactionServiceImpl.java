@@ -70,7 +70,7 @@ public class TransactionServiceImpl implements TransactionService {
                 .sourceAccount(from)
                 .destinationAccount(to)
                 .amount(amount)
-                .description(request.getDescription())
+                .description("Transfer")
                 .type(TransactionType.TRANSFER)
                 .initiatedBy(currentUser)
                 .build();
