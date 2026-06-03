@@ -7,8 +7,9 @@ import java.util.List;
 public interface AccountService {
     List<AccountDTO> getAccountsOfCurrentUser(String username);
     List<AccountDTO> getAccountsByUserId(Long userId);
-    AccountDTO getAccountByIban(String iban);
+    AccountDTO getAccountByIban(String iban, String currentUsername);
     AccountDTO createAccount(CreateAccountRequest request, String currentUsername);
     List<AccountDTO> getAllCustomerAccounts();
     AccountDTO updateAccount(String iban, UpdateAccountRequest request);
+    List<IbanSearchResultDTO> searchAccountsByCustomerName(String name);
 }

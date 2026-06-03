@@ -1,6 +1,7 @@
 package com.banking.controller;
 import com.banking.dto.account.AccountDTO;
 import com.banking.dto.account.CreateAccountRequest;
+import com.banking.dto.account.IbanSearchResultDTO;
 import com.banking.dto.account.UpdateAccountRequest;
 import com.banking.service.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,10 +41,18 @@ public class AccountController {
         return ResponseEntity.ok(accountService.getAccountsOfCurrentUser(userDetails.getUsername()));
     }
 
+    @GetMapping("/search")
+    @Operation(summary = "Search CHECKING accounts by customer name - returns IBAN and owner info only")
+    public ResponseEntity<List<IbanSearchResultDTO>> searchByName(
+            @RequestParam String name) {
+        return ResponseEntity.ok(accountService.searchAccountsByCustomerName(name));
+    }
+
     @GetMapping("/{iban}")
-    @Operation(summary = "Get account details by IBAN")
-    public ResponseEntity<AccountDTO> getByIban(@PathVariable String iban) {
-        return ResponseEntity.ok(accountService.getAccountByIban(iban));
+    @Operation(summary = "Get account details by IBAN - owner or employee only")
+    public ResponseEntity<AccountDTO> getByIban(@PathVariable String iban,
+                                                 @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(accountService.getAccountByIban(iban, userDetails.getUsername()));
     }
 
     @PostMapping

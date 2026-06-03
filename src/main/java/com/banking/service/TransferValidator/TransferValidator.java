@@ -28,6 +28,10 @@ public class TransferValidator {
         validateAbsoluteLimit(from, amount);
     }
 
+    public boolean isSameUserTransfer(@NonNull Account from, @NonNull Account to) {
+        return from.getUser().getId().equals(to.getUser().getId());
+    }
+
     private void validateSameAccount(@NonNull Account from, @NonNull Account to) {
         if (from.getIban().equals(to.getIban())) {
             throw new BadRequestException("Cannot transfer to the same account");
@@ -51,8 +55,10 @@ public class TransferValidator {
     }
 
     private void validateCheckingAccounts(@NonNull Account from, @NonNull Account to) {
+        // Own-account transfers allow any combination of CHECKING/SAVINGS
+        if (isSameUserTransfer(from, to)) return;
         if (from.getAccountType() != AccountType.CHECKING || to.getAccountType() != AccountType.CHECKING) {
-            throw new BadRequestException("Transfers are only allowed between checking accounts");
+            throw new BadRequestException("External transfers are only allowed between checking accounts");
         }
     }
 

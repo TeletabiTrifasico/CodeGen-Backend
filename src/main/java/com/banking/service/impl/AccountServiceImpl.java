@@ -42,10 +42,23 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
-    public AccountDTO getAccountByIban(String iban) {
-        return accountRepository.findByIban(iban)
-                .map(AccountDTO::from)
+    public AccountDTO getAccountByIban(String iban, String currentUsername) {
+        Account account = accountRepository.findByIban(iban)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + iban));
+        User currentUser = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (currentUser.getRole() != UserRole.EMPLOYEE &&
+                !account.getUser().getUsername().equals(currentUsername)) {
+            throw new UnauthorizedException("You do not have access to this account");
+        }
+        return AccountDTO.from(account);
+    }
+
+    @Override
+    public List<IbanSearchResultDTO> searchAccountsByCustomerName(String name) {
+        return accountRepository.searchByCustomerName(name).stream()
+                .map(IbanSearchResultDTO::from)
+                .toList();
     }
 
     @Override
