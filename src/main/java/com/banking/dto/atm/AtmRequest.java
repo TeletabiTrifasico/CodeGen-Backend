@@ -16,4 +16,6 @@ public class AtmRequest {
     @NotNull
     @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
     private BigDecimal amount;
+
+    private String description;
 }
