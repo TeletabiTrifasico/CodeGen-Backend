@@ -56,10 +56,10 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
-            .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
+            .orElseThrow(() -> new UnauthorizedException("Invalid username or password"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new UnauthorizedException("Invalid credentials");
+            throw new UnauthorizedException("Invalid username or password");
         }
 
         String token = tokenProvider.generateToken(user.getUsername());
@@ -68,6 +68,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void logout(String token) {
+        if (!tokenProvider.validateToken(token)) {
+            throw new UnauthorizedException("Invalid or expired JWT token");
+        }
         tokenProvider.blacklistToken(token);
     }
 }
