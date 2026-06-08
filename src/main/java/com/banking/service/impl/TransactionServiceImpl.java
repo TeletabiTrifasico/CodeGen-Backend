@@ -14,13 +14,15 @@ import com.banking.repository.TransactionRepository;
 import com.banking.repository.UserRepository;
 import com.banking.service.TransactionService;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 import com.banking.service.TransferValidator.TransferValidator;
@@ -41,10 +43,12 @@ public class TransactionServiceImpl implements TransactionService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Account from = accountRepository.findByIban(request.getFromIban())
-                .orElseThrow(() -> new ResourceNotFoundException("Source account not found: " + request.getFromIban()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Source account not found: " + request.getFromIban()));
 
         Account to = accountRepository.findByIban(request.getToIban())
-                .orElseThrow(() -> new ResourceNotFoundException("Destination account not found: " + request.getToIban()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Destination account not found: " + request.getToIban()));
 
         BigDecimal amount = request.getAmount();
 
@@ -78,37 +82,36 @@ public class TransactionServiceImpl implements TransactionService {
         return TransactionDTO.from(transactionRepository.save(transaction));
     }
 
-
     @Override
-    public List<TransactionDTO> getTransactionsForCurrentUser(String username) {
-        return transactionRepository.findByUsername(username).stream()
-                .map(TransactionDTO::from)
-                .toList();
+    public Page<TransactionDTO> getTransactionsForCurrentUser(String username, Pageable pageable) {
+        return transactionRepository.findByUsername(username, pageable)
+                .map(TransactionDTO::from);
     }
 
     @Override
-    public List<TransactionDTO> getTransactionsByIban(String iban, String currentUsername) {
+    public Page<TransactionDTO> getTransactionsByIban(
+            String iban,
+            String currentUsername,
+            Pageable pageable) {
+
         Account account = accountRepository.findByIban(iban)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + iban));
 
         User currentUser = userRepository.findByUsername(currentUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // Only the account owner or an employee can view account transactions
         if (currentUser.getRole() != UserRole.EMPLOYEE &&
                 !account.getUser().getUsername().equals(currentUsername)) {
             throw new UnauthorizedException("You do not have access to this account's transactions");
         }
 
-        return transactionRepository.findByAccountIban(iban).stream()
-                .map(TransactionDTO::from)
-                .toList();
+        return transactionRepository.findByAccountIban(iban, pageable)
+                .map(TransactionDTO::from);
     }
 
     @Override
-    public List<TransactionDTO> getAllTransactions() {
-        return transactionRepository.findAllByOrderByTimestampDesc().stream()
-                .map(TransactionDTO::from)
-                .toList();
+    public Page<TransactionDTO> getAllTransactions(Pageable pageable) {
+        return transactionRepository.findAllByOrderByTimestampDesc(pageable)
+                .map(TransactionDTO::from);
     }
 }
