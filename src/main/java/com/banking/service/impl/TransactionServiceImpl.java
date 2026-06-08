@@ -13,6 +13,8 @@ import com.banking.repository.AccountRepository;
 import com.banking.repository.TransactionRepository;
 import com.banking.repository.UserRepository;
 import com.banking.service.TransactionService;
+import com.banking.service.TransferPolicy.TransferPolicy;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Pageable;
@@ -25,61 +27,19 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.banking.service.TransferValidator.TransferValidator;
-
 @Service
 @RequiredArgsConstructor
 public class TransactionServiceImpl implements TransactionService {
 
-    private final TransferValidator transferValidator;
+    private final TransferPolicy transferPolicy;
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
 
     @Override
-    @Transactional
-    public TransactionDTO transfer(TransferRequest request, String currentUsername) {
-        User currentUser = userRepository.findByUsername(currentUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        Account from = accountRepository.findByIban(request.getFromIban())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Source account not found: " + request.getFromIban()));
-
-        Account to = accountRepository.findByIban(request.getToIban())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Destination account not found: " + request.getToIban()));
-
-        BigDecimal amount = request.getAmount();
-
-        LocalDate today = LocalDate.now();
-        LocalDateTime startOfDay = today.atStartOfDay();
-        LocalDateTime startOfNextDay = startOfDay.plusDays(1);
-
-        BigDecimal todayOutgoing = transactionRepository.sumOutgoingAmountByIbanAndDateRange(
-                from.getIban(), startOfDay, startOfNextDay);
-        if (todayOutgoing == null) {
-            todayOutgoing = BigDecimal.ZERO;
-        }
-
-        transferValidator.validateTransfer(currentUser, from, to, amount, todayOutgoing, currentUsername);
-
-        from.setBalance(from.getBalance().subtract(amount));
-        to.setBalance(to.getBalance().add(amount));
-        accountRepository.save(from);
-        accountRepository.save(to);
-
-        Transaction transaction = Transaction.builder()
-                .reference("TRX-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .sourceAccount(from)
-                .destinationAccount(to)
-                .amount(amount)
-                .description("Transfer")
-                .type(TransactionType.TRANSFER)
-                .initiatedBy(currentUser)
-                .build();
-
-        return TransactionDTO.from(transactionRepository.save(transaction));
+    public Page<TransactionDTO> getAllTransactions(Pageable pageable) {
+        return transactionRepository.findAllByOrderByTimestampDesc(pageable)
+                .map(TransactionDTO::from);
     }
 
     @Override
@@ -110,8 +70,71 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
-    public Page<TransactionDTO> getAllTransactions(Pageable pageable) {
-        return transactionRepository.findAllByOrderByTimestampDesc(pageable)
-                .map(TransactionDTO::from);
+    @Transactional
+    public TransactionDTO transfer(TransferRequest request, String username) {
+
+        User user = getUser(username);
+        Account from = getAccount(request.getFromIban());
+        Account to = getAccount(request.getToIban());
+        BigDecimal amount = request.getAmount();
+
+        BigDecimal todayOutgoing = calculateTodayOutgoing(from.getIban());
+
+        transferPolicy.validate(user, from, to, amount, todayOutgoing);
+
+        executeTransfer(from, to, amount);
+
+        Transaction transaction = createTransaction(user, from, to, amount);
+
+        accountRepository.save(from);
+        accountRepository.save(to);
+
+        return TransactionDTO.from(transactionRepository.save(transaction));
+    }
+
+    // Helper methods
+    private User getUser(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
+    private Account getAccount(String iban) {
+        return accountRepository.findByIban(iban)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Account not found: " + iban));
+    }
+
+    private BigDecimal calculateTodayOutgoing(String iban) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime start = today.atStartOfDay();
+        LocalDateTime end = start.plusDays(1);
+
+        BigDecimal result = transactionRepository
+                .sumOutgoingAmountByIbanAndDateRange(iban, start, end);
+
+        return result != null ? result : BigDecimal.ZERO;
+    }
+
+    private void executeTransfer(Account from, Account to, BigDecimal amount) {
+        from.setBalance(from.getBalance().subtract(amount));
+        to.setBalance(to.getBalance().add(amount));
+    }
+
+    private Transaction createTransaction(User user, Account from, Account to, BigDecimal amount) {
+        return Transaction.builder()
+                .reference(generateReference())
+                .sourceAccount(from)
+                .destinationAccount(to)
+                .amount(amount)
+                .description("Transfer")
+                .type(TransactionType.TRANSFER)
+                .initiatedBy(user)
+                .build();
+    }
+
+    private String generateReference() {
+        return "TRX-" + UUID.randomUUID().toString()
+                .substring(0, 8)
+                .toUpperCase();
     }
 }

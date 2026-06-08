@@ -50,7 +50,7 @@ public class TransactionController {
         return ResponseEntity.ok(transactionService.getTransactionsForCurrentUser(userDetails.getUsername(), pageable));
     }
 
-    @PostMapping("/transaction")
+    @PostMapping
     @Operation(summary = "Transfer money between two accounts")
     public ResponseEntity<TransactionDTO> transfer(@Valid @RequestBody TransferRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
