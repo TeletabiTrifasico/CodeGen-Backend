@@ -43,7 +43,7 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
-    public Page<TransactionDTO> getTransactionsForCurrentUser(String username, Pageable pageable) {
+    public Page<TransactionDTO> getTransactionsByUser(String username, Pageable pageable) {
         return transactionRepository.findByUsername(username, pageable)
                 .map(TransactionDTO::from);
     }

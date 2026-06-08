@@ -47,7 +47,7 @@ public class TransactionController {
             return ResponseEntity.ok(transactionService.getAllTransactions(pageable));
         }
 
-        return ResponseEntity.ok(transactionService.getTransactionsForCurrentUser(userDetails.getUsername(), pageable));
+        return ResponseEntity.ok(transactionService.getTransactionsByUser(userDetails.getUsername(), pageable));
     }
 
     @PostMapping
