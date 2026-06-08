@@ -15,6 +15,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
 
 @RestController
 @RequestMapping("/api/transactions")
@@ -25,23 +28,24 @@ public class TransactionController {
     private final TransactionService transactionService;
 
     @GetMapping
-    @Operation(summary = "Get all transactions involving the authenticated user's accounts")
-    public ResponseEntity<List<TransactionDTO>> getMyTransactions(@AuthenticationPrincipal UserDetails userDetails) {
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('EMPLOYEE')")
+    @Operation(summary = "Get transactions. Employees see all, customers see their own.")
+    public ResponseEntity<List<TransactionDTO>> getTransactions(
+            @RequestParam(required = false) String iban,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        boolean isEmployee = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_EMPLOYEE"));
+
+        if (iban != null) {
+            return ResponseEntity.ok(transactionService.getTransactionsByIban(iban, userDetails.getUsername()));
+        }
+
+        if (isEmployee) {
+            return ResponseEntity.ok(transactionService.getAllTransactions());
+        }
+
         return ResponseEntity.ok(transactionService.getTransactionsForCurrentUser(userDetails.getUsername()));
-    }
-
-    @GetMapping("/all")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Get all transactions in the system - Employee only")
-    public ResponseEntity<List<TransactionDTO>> getAllTransactions() {
-        return ResponseEntity.ok(transactionService.getAllTransactions());
-    }
-
-    @GetMapping("/account/{iban}")
-    @Operation(summary = "Get transactions of a specific account")
-    public ResponseEntity<List<TransactionDTO>> getByAccount(@PathVariable String iban,
-                                                              @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(transactionService.getTransactionsByIban(iban, userDetails.getUsername()));
     }
 
     @PostMapping("/transaction")
