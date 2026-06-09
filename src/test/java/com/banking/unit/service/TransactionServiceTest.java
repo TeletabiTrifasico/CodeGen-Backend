@@ -14,6 +14,7 @@ import com.banking.exception.UnauthorizedException;
 import com.banking.repository.AccountRepository;
 import com.banking.repository.TransactionRepository;
 import com.banking.repository.UserRepository;
+import com.banking.service.TransferPolicy.TransferPolicy;
 import com.banking.service.impl.TransactionServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,8 @@ class TransactionServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    private TransferPolicy transferPolicy;
+
     @InjectMocks
     private TransactionServiceImpl transactionService;
 
@@ -52,43 +55,51 @@ class TransactionServiceTest {
 
     @BeforeEach
     void setUp() {
+        transferPolicy = new TransferPolicy(); // real instance
+        transactionService = new TransactionServiceImpl(
+                transferPolicy,
+                transactionRepository,
+                accountRepository,
+                userRepository);
+
         customer = User.builder()
-            .id(1L)
-            .username("johndoe")
-            .role(UserRole.CUSTOMER)
-            .approved(true)
-            .dateOfBirth(LocalDate.of(1990, 1, 1))
-            .build();
+                .id(1L)
+                .username("johndoe")
+                .role(UserRole.CUSTOMER)
+                .approved(true)
+                .dateOfBirth(LocalDate.of(1990, 1, 1))
+                .build();
 
         fromAccount = Account.builder()
-            .id(1L)
-            .iban("NL02BANK1000000001")
-            .accountType(AccountType.CHECKING)
-            .balance(new BigDecimal("1000.00"))
-            .absoluteLimit(BigDecimal.ZERO)
-            .transactionLimit(new BigDecimal("500.00"))
-            .active(true)
-            .user(customer)
-            .build();
+                .id(1L)
+                .iban("NL02BANK1000000001")
+                .accountType(AccountType.CHECKING)
+                .balance(new BigDecimal("1000.00"))
+                .dayLimit(new BigDecimal("2000.00"))
+                .absoluteLimit(BigDecimal.ZERO)
+                .transactionLimit(new BigDecimal("500.00"))
+                .active(true)
+                .user(customer)
+                .build();
 
         User otherCustomer = User.builder()
-            .id(2L)
-            .username("janedoe")
-            .role(UserRole.CUSTOMER)
-            .approved(true)
-            .dateOfBirth(LocalDate.of(1993, 1, 1))
-            .build();
+                .id(2L)
+                .username("janedoe")
+                .role(UserRole.CUSTOMER)
+                .approved(true)
+                .dateOfBirth(LocalDate.of(1993, 1, 1))
+                .build();
 
         toAccount = Account.builder()
-            .id(2L)
-            .iban("NL02BANK2000000001")
-            .accountType(AccountType.CHECKING)
-            .balance(new BigDecimal("500.00"))
-            .absoluteLimit(BigDecimal.ZERO)
-            .transactionLimit(new BigDecimal("500.00"))
-            .active(true)
-            .user(otherCustomer)
-            .build();
+                .id(2L)
+                .iban("NL02BANK2000000001")
+                .accountType(AccountType.CHECKING)
+                .balance(new BigDecimal("500.00"))
+                .absoluteLimit(BigDecimal.ZERO)
+                .transactionLimit(new BigDecimal("500.00"))
+                .active(true)
+                .user(otherCustomer)
+                .build();
 
         transferRequest = new TransferRequest();
         transferRequest.setFromIban("NL02BANK1000000001");
@@ -118,28 +129,30 @@ class TransactionServiceTest {
 
     @Test
     void transfer_insufficientFunds_throws() {
-        transferRequest.setAmount(new BigDecimal("1500.00")); // more than balance
+        fromAccount.setBalance(new BigDecimal("100.00"));
+        fromAccount.setDayLimit(new BigDecimal("2000.00"));
+        transferRequest.setAmount(new BigDecimal("200.00"));
 
         when(userRepository.findByUsername("johndoe")).thenReturn(Optional.of(customer));
         when(accountRepository.findByIban("NL02BANK1000000001")).thenReturn(Optional.of(fromAccount));
         when(accountRepository.findByIban("NL02BANK2000000001")).thenReturn(Optional.of(toAccount));
 
         assertThatThrownBy(() -> transactionService.transfer(transferRequest, "johndoe"))
-            .isInstanceOf(BadRequestException.class); // exceeds transactionLimit first
+                .isInstanceOf(InsufficientFundsException.class);
     }
 
     @Test
     void transfer_exceedsTransactionLimit_throws() {
         fromAccount.setBalance(new BigDecimal("10000.00"));
-        transferRequest.setAmount(new BigDecimal("600.00")); // exceeds 500 limit
+        transferRequest.setAmount(new BigDecimal("600.00"));
 
         when(userRepository.findByUsername("johndoe")).thenReturn(Optional.of(customer));
         when(accountRepository.findByIban("NL02BANK1000000001")).thenReturn(Optional.of(fromAccount));
         when(accountRepository.findByIban("NL02BANK2000000001")).thenReturn(Optional.of(toAccount));
 
         assertThatThrownBy(() -> transactionService.transfer(transferRequest, "johndoe"))
-            .isInstanceOf(BadRequestException.class)
-            .hasMessageContaining("transaction limit");
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("transaction limit");
     }
 
     @Test
@@ -150,8 +163,8 @@ class TransactionServiceTest {
         when(accountRepository.findByIban("NL02BANK1000000001")).thenReturn(Optional.of(fromAccount));
 
         assertThatThrownBy(() -> transactionService.transfer(transferRequest, "johndoe"))
-            .isInstanceOf(BadRequestException.class)
-            .hasMessageContaining("same account");
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("same account");
     }
 
     @Test
@@ -161,6 +174,6 @@ class TransactionServiceTest {
         when(accountRepository.findByIban("NL02BANK2000000001")).thenReturn(Optional.of(toAccount));
 
         assertThatThrownBy(() -> transactionService.transfer(transferRequest, "janedoe"))
-            .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(UnauthorizedException.class);
     }
 }
