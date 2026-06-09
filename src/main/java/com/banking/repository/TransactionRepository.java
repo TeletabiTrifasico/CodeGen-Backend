@@ -17,15 +17,21 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     @Query("""
             SELECT t FROM Transaction t
-            WHERE t.sourceAccount.iban = :iban OR t.destinationAccount.iban = :iban
+            LEFT JOIN t.sourceAccount sa
+            LEFT JOIN t.destinationAccount da
+            WHERE sa.iban = :iban OR da.iban = :iban
             ORDER BY t.timestamp DESC
             """)
     Page<Transaction> findByAccountIban(@Param("iban") String iban, Pageable pageable);
 
     @Query("""
             SELECT t FROM Transaction t
-            WHERE t.sourceAccount.user.username = :username
-               OR t.destinationAccount.user.username = :username
+            LEFT JOIN t.sourceAccount sa
+            LEFT JOIN sa.user sau
+            LEFT JOIN t.destinationAccount da
+            LEFT JOIN da.user dau
+            WHERE sau.username = :username
+               OR dau.username = :username
             ORDER BY t.timestamp DESC
             """)
     Page<Transaction> findByUsername(@Param("username") String username, Pageable pageable);
