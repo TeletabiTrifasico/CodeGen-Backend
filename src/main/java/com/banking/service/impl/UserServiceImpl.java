@@ -1,6 +1,5 @@
 package com.banking.service.impl;
 
-import com.banking.dto.account.AccountDTO;
 import com.banking.dto.user.UserDTO;
 import com.banking.entity.Account;
 import com.banking.entity.User;
@@ -14,10 +13,9 @@ import com.banking.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
+
 
 @Service
 @RequiredArgsConstructor
@@ -48,6 +46,13 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public List<UserDTO> getCustomersWithoutAccounts() {
+        return userRepository.findByRoleAndAccountsIsEmpty(UserRole.CUSTOMER).stream()
+            .map(UserDTO::from)
+            .toList();
+    }
+
+    @Override
     @Transactional
     public UserDTO approveUser(Long id) {
         User user = userRepository.findById(id)
@@ -63,7 +68,7 @@ public class UserServiceImpl implements UserService {
         user.setApproved(true);
         userRepository.save(user);
 
-        // Auto-create a CHECKING account for the newly approved customer
+        // create a CHECKING account for the newly approved customer
         Account checking = Account.builder()
             .iban(generateIban())
             .accountType(AccountType.CHECKING)
@@ -76,6 +81,18 @@ public class UserServiceImpl implements UserService {
             .build();
         accountRepository.save(checking);
 
+        // create a SAVINGS account for the newly approved customer
+        Account savings = Account.builder()
+            .iban(generateIban())
+            .accountType(AccountType.SAVINGS)
+            .balance(BigDecimal.ZERO)
+            .absoluteLimit(BigDecimal.ZERO)
+            .dayLimit(new BigDecimal("1000.00"))
+            .transactionLimit(new BigDecimal("500.00"))
+            .active(true)
+            .user(user)
+            .build();
+        accountRepository.save(savings);
         return UserDTO.from(user);
     }
 

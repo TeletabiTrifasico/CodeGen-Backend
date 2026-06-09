@@ -32,19 +32,19 @@ public class TransactionController {
 
     @GetMapping("/all")
     @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Get all transactions in the system (employee only)")
+    @Operation(summary = "Get all transactions in the system - Employee only")
     public ResponseEntity<List<TransactionDTO>> getAllTransactions() {
         return ResponseEntity.ok(transactionService.getAllTransactions());
     }
 
     @GetMapping("/account/{iban}")
-    @Operation(summary = "Get transactions for a specific account")
+    @Operation(summary = "Get transactions of a specific account")
     public ResponseEntity<List<TransactionDTO>> getByAccount(@PathVariable String iban,
                                                               @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(transactionService.getTransactionsByIban(iban, userDetails.getUsername()));
     }
 
-    @PostMapping("/transfer")
+    @PostMapping("/transaction")
     @Operation(summary = "Transfer money between two accounts")
     public ResponseEntity<TransactionDTO> transfer(@Valid @RequestBody TransferRequest request,
                                                    @AuthenticationPrincipal UserDetails userDetails) {

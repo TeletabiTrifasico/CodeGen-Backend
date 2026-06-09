@@ -1,7 +1,6 @@
 package com.banking.service.impl;
 
-import com.banking.dto.account.AccountDTO;
-import com.banking.dto.account.CreateAccountRequest;
+import com.banking.dto.account.*;
 import com.banking.entity.Account;
 import com.banking.entity.User;
 import com.banking.enums.AccountType;
@@ -27,38 +26,51 @@ public class AccountServiceImpl implements AccountService {
     private final UserRepository userRepository;
 
     @Override
-    public List<AccountDTO> getAccountsForCurrentUser(String username) {
+    public List<AccountDTO> getAccountsOfCurrentUser(String username) {
         return accountRepository.findByUserUsername(username).stream()
-            .map(AccountDTO::from)
-            .toList();
+                .map(AccountDTO::from)
+                .toList();
     }
 
     @Override
     public List<AccountDTO> getAccountsByUserId(Long userId) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
         return accountRepository.findByUser(user).stream()
-            .map(AccountDTO::from)
-            .toList();
+                .map(AccountDTO::from)
+                .toList();
     }
 
     @Override
-    public AccountDTO getAccountByIban(String iban) {
-        return accountRepository.findByIban(iban)
-            .map(AccountDTO::from)
-            .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + iban));
+    public AccountDTO getAccountByIban(String iban, String currentUsername) {
+        Account account = accountRepository.findByIban(iban)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + iban));
+        User currentUser = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (currentUser.getRole() != UserRole.EMPLOYEE &&
+                !account.getUser().getUsername().equals(currentUsername)) {
+            throw new UnauthorizedException("You do not have access to this account");
+        }
+        return AccountDTO.from(account);
+    }
+
+    @Override
+    public List<IbanSearchResultDTO> searchAccountsByCustomerName(String name) {
+        return accountRepository.searchByCustomerName(name).stream()
+                .map(IbanSearchResultDTO::from)
+                .toList();
     }
 
     @Override
     @Transactional
     public AccountDTO createAccount(CreateAccountRequest request, String currentUsername) {
         User currentUser = userRepository.findByUsername(currentUsername)
-            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         User targetUser;
         if (currentUser.getRole() == UserRole.EMPLOYEE && request.getUserId() != null) {
             targetUser = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("Target user not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Target user not found"));
         } else {
             targetUser = currentUser;
         }
@@ -68,21 +80,57 @@ public class AccountServiceImpl implements AccountService {
         }
 
         BigDecimal dayLimit = request.getAccountType() == AccountType.SAVINGS
-            ? new BigDecimal("500.00") : new BigDecimal("1000.00");
+                ? new BigDecimal("500.00") : new BigDecimal("1000.00");
         BigDecimal txLimit = request.getAccountType() == AccountType.SAVINGS
-            ? new BigDecimal("250.00") : new BigDecimal("500.00");
+                ? new BigDecimal("250.00") : new BigDecimal("500.00");
 
         Account account = Account.builder()
-            .iban(generateIban())
-            .accountType(request.getAccountType())
-            .balance(BigDecimal.ZERO)
-            .absoluteLimit(BigDecimal.ZERO)
-            .dayLimit(dayLimit)
-            .transactionLimit(txLimit)
-            .active(true)
-            .user(targetUser)
-            .build();
+                .iban(generateIban())
+                .accountType(request.getAccountType())
+                .balance(BigDecimal.ZERO)
+                .absoluteLimit(BigDecimal.ZERO)
+                .dayLimit(dayLimit)
+                .transactionLimit(txLimit)
+                .active(true)
+                .user(targetUser)
+                .build();
 
+        return AccountDTO.from(accountRepository.save(account));
+    }
+
+    @Override
+    public List<AccountDTO> getAllCustomerAccounts() {
+        return accountRepository.findByUserRole(UserRole.CUSTOMER).stream()
+                .map(AccountDTO::from)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public AccountDTO updateAccount(String iban, UpdateAccountRequest request) {
+        Account account = accountRepository.findByIban(iban)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + iban));
+        if (request.getAbsoluteLimit() != null) {
+            if (request.getAbsoluteLimit().compareTo(BigDecimal.ZERO) < 0) {
+                throw new BadRequestException("Absolute limit must be zero or positive");
+            }
+            account.setAbsoluteLimit(request.getAbsoluteLimit());
+        }
+        if (request.getDayLimit() != null) {
+            if (request.getDayLimit().compareTo(BigDecimal.ZERO) < 0) {
+                throw new BadRequestException("Daily limit must be zero or positive");
+            }
+            account.setDayLimit(request.getDayLimit());
+        }
+        if (request.getTransactionLimit() != null) {
+            if (request.getTransactionLimit().compareTo(BigDecimal.ZERO) < 0) {
+                throw new BadRequestException("Transaction limit must be zero or positive");
+            }
+            account.setTransactionLimit(request.getTransactionLimit());
+        }
+        if (request.getActive() != null) {
+            account.setActive(request.getActive());
+        }
         return AccountDTO.from(accountRepository.save(account));
     }
 

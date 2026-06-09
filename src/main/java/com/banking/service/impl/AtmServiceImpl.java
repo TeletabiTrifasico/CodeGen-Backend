@@ -43,7 +43,7 @@ public class AtmServiceImpl implements AtmService {
             .reference("ATM-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
             .destinationAccount(account)
             .amount(request.getAmount())
-            .description(request.getDescription() != null ? request.getDescription() : "ATM Deposit")
+            .description("ATM Deposit")
             .type(TransactionType.ATM_DEPOSIT)
             .initiatedBy(user)
             .build();
@@ -73,7 +73,7 @@ public class AtmServiceImpl implements AtmService {
             .reference("ATM-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
             .sourceAccount(account)
             .amount(request.getAmount())
-            .description(request.getDescription() != null ? request.getDescription() : "ATM Withdrawal")
+            .description("ATM Withdrawal")
             .type(TransactionType.ATM_WITHDRAWAL)
             .initiatedBy(user)
             .build();

@@ -1,7 +1,8 @@
 package com.banking.controller;
-
 import com.banking.dto.account.AccountDTO;
 import com.banking.dto.account.CreateAccountRequest;
+import com.banking.dto.account.IbanSearchResultDTO;
+import com.banking.dto.account.UpdateAccountRequest;
 import com.banking.service.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,7 +16,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
 @RestController
 @RequestMapping("/api/accounts")
 @Tag(name = "Accounts", description = "Bank account operations")
@@ -25,22 +25,34 @@ public class AccountController {
     private final AccountService accountService;
 
     @GetMapping
-    @Operation(summary = "Get all accounts for the authenticated user")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    @Operation(summary = "Get all customer accounts or accounts of specific user by User ID - Employee only")
+    public ResponseEntity<List<AccountDTO>> getAccounts(
+            @RequestParam(required = false) Long userId) {
+        if (userId != null) {
+            return ResponseEntity.ok(accountService.getAccountsByUserId(userId));
+        }
+        return ResponseEntity.ok(accountService.getAllCustomerAccounts());
+    }
+
+    @GetMapping("/accounts")
+    @Operation(summary = "Get all accounts of an authenticated user")
     public ResponseEntity<List<AccountDTO>> getMyAccounts(@AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(accountService.getAccountsForCurrentUser(userDetails.getUsername()));
+        return ResponseEntity.ok(accountService.getAccountsOfCurrentUser(userDetails.getUsername()));
+    }
+
+    @GetMapping("/search")
+    @Operation(summary = "Search CHECKING accounts by customer name - returns IBAN and owner info only")
+    public ResponseEntity<List<IbanSearchResultDTO>> searchByName(
+            @RequestParam String name) {
+        return ResponseEntity.ok(accountService.searchAccountsByCustomerName(name));
     }
 
     @GetMapping("/{iban}")
-    @Operation(summary = "Get account details by IBAN")
-    public ResponseEntity<AccountDTO> getByIban(@PathVariable String iban) {
-        return ResponseEntity.ok(accountService.getAccountByIban(iban));
-    }
-
-    @GetMapping("/user/{userId}")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Get accounts belonging to a specific user (employee only)")
-    public ResponseEntity<List<AccountDTO>> getByUserId(@PathVariable Long userId) {
-        return ResponseEntity.ok(accountService.getAccountsByUserId(userId));
+    @Operation(summary = "Get account details by IBAN - owner or employee only")
+    public ResponseEntity<AccountDTO> getByIban(@PathVariable String iban,
+                                                 @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(accountService.getAccountByIban(iban, userDetails.getUsername()));
     }
 
     @PostMapping
@@ -48,6 +60,16 @@ public class AccountController {
     public ResponseEntity<AccountDTO> createAccount(@Valid @RequestBody CreateAccountRequest request,
                                                     @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(accountService.createAccount(request, userDetails.getUsername()));
+                .body(accountService.createAccount(request, userDetails.getUsername()));
     }
+
+    @PatchMapping("/{iban}")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    @Operation(summary ="Update an account - close,daily limit, transaction limit, - Employee only")
+    public ResponseEntity<AccountDTO> updateAccount(@PathVariable String iban,
+                                                    @RequestBody UpdateAccountRequest request) {
+        return ResponseEntity.ok(accountService.updateAccount(iban, request));
+    }
+
+
 }

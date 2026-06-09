@@ -1,6 +1,7 @@
 package com.banking.controller;
 
 import com.banking.dto.user.UserDTO;
+import com.banking.enums.UserStatusFilter;
 import com.banking.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,16 +22,15 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Get all users")
-    public ResponseEntity<List<UserDTO>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
-    }
-
-    @GetMapping("/pending")
-    @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Get customers awaiting approval")
-    public ResponseEntity<List<UserDTO>> getPendingCustomers() {
-        return ResponseEntity.ok(userService.getPendingCustomers());
+    @Operation(summary = "Get users by status (All, Pending, Without Accounts) - Employee Only")
+    public ResponseEntity<List<UserDTO>> getUsers(@RequestParam(required = false) UserStatusFilter status) {
+        if (status == null) {
+            return ResponseEntity.ok(userService.getAllUsers());
+        }
+        return switch (status) {
+            case pending -> ResponseEntity.ok(userService.getPendingCustomers());
+            case without_accounts -> ResponseEntity.ok(userService.getCustomersWithoutAccounts());
+        };
     }
 
     @GetMapping("/{id}")
@@ -40,9 +40,9 @@ public class UserController {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
-    @PutMapping("/{id}/approve")
+    @PutMapping("/{id}")
     @PreAuthorize("hasRole('EMPLOYEE')")
-    @Operation(summary = "Approve a customer account and create their checking account")
+    @Operation(summary = "Approve a customer and create their checking and saving accounts")
     public ResponseEntity<UserDTO> approveUser(@PathVariable Long id) {
         return ResponseEntity.ok(userService.approveUser(id));
     }
