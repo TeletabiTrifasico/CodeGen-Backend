@@ -14,6 +14,7 @@ import com.banking.service.impl.AuthServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -23,7 +24,7 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -57,26 +58,26 @@ class AuthServiceTest {
         registerRequest.setDateOfBirth(LocalDate.of(1995, 1, 1));
 
         existingUser = User.builder()
-            .id(1L)
-            .username("johndoe")
-            .password("encodedPassword")
-            .firstName("John")
-            .lastName("Doe")
-            .email("john@example.nl")
-            .phoneNumber("+31698765432")
-            .bsn("987654321")
-            .dateOfBirth(LocalDate.of(1990, 6, 20))
-            .role(UserRole.CUSTOMER)
-            .approved(true)
-            .build();
+                .id(1L)
+                .username("johndoe")
+                .password("encodedPassword")
+                .firstName("John")
+                .lastName("Doe")
+                .email("john@example.nl")
+                .phoneNumber("+31698765432")
+                .bsn("987654321")
+                .dateOfBirth(LocalDate.of(1990, 6, 20))
+                .role(UserRole.CUSTOMER)
+                .approved(true)
+                .build();
     }
 
     @Test
-    void register_success() {
+    void register_storesEncodedPasswordAndDefaultsToUnapprovedCustomer() {
         when(userRepository.existsByUsername("newuser")).thenReturn(false);
         when(userRepository.existsByEmail("new@example.nl")).thenReturn(false);
         when(userRepository.existsByBsn("111222333")).thenReturn(false);
-        when(passwordEncoder.encode("Password1!")).thenReturn("encoded");
+        when(passwordEncoder.encode("Password1!")).thenReturn("ENCODED");
         when(userRepository.save(any(User.class))).thenAnswer(inv -> {
             User u = inv.getArgument(0);
             u.setId(5L);
@@ -85,10 +86,15 @@ class AuthServiceTest {
 
         UserDTO result = authService.register(registerRequest);
 
+        // role + approved are decided by the service, not taken from the request.
         assertThat(result.getUsername()).isEqualTo("newuser");
         assertThat(result.isApproved()).isFalse();
         assertThat(result.getRole()).isEqualTo(UserRole.CUSTOMER);
-        verify(userRepository).save(any(User.class));
+
+        // The raw password must never be stored: the service must hash it first.
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getPassword()).isEqualTo("ENCODED");
     }
 
     @Test
@@ -96,8 +102,10 @@ class AuthServiceTest {
         when(userRepository.existsByUsername("newuser")).thenReturn(true);
 
         assertThatThrownBy(() -> authService.register(registerRequest))
-            .isInstanceOf(BadRequestException.class)
-            .hasMessageContaining("Username already taken");
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Username already taken");
+
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -106,12 +114,23 @@ class AuthServiceTest {
         when(userRepository.existsByEmail("new@example.nl")).thenReturn(true);
 
         assertThatThrownBy(() -> authService.register(registerRequest))
-            .isInstanceOf(BadRequestException.class)
-            .hasMessageContaining("Email already in use");
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Email already in use");
     }
 
     @Test
-    void login_success() {
+    void register_duplicateBsn_throws() {
+        when(userRepository.existsByUsername("newuser")).thenReturn(false);
+        when(userRepository.existsByEmail("new@example.nl")).thenReturn(false);
+        when(userRepository.existsByBsn("111222333")).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.register(registerRequest))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("BSN already registered");
+    }
+
+    @Test
+    void login_success_returnsTokenAndUser() {
         LoginRequest loginRequest = new LoginRequest();
         loginRequest.setUsername("johndoe");
         loginRequest.setPassword("Password1!");
@@ -136,8 +155,8 @@ class AuthServiceTest {
         when(passwordEncoder.matches("WrongPassword", "encodedPassword")).thenReturn(false);
 
         assertThatThrownBy(() -> authService.login(loginRequest))
-            .isInstanceOf(UnauthorizedException.class)
-            .hasMessageContaining("Invalid credentials");
+                .isInstanceOf(UnauthorizedException.class)
+                .hasMessageContaining("Invalid username or password");
     }
 
     @Test
@@ -149,6 +168,6 @@ class AuthServiceTest {
         when(userRepository.findByUsername("unknown")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.login(loginRequest))
-            .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(UnauthorizedException.class);
     }
 }
